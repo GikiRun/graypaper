@@ -14,24 +14,24 @@ Broadly speaking, \Jam (and indeed blockchains in general) may be defined simply
 To aid comprehension and definition of our protocol, we partition as many of our terms as possible into their functional components. We begin with the block $B$ which may be restated as the header $H$ and some input data external to the system and thus said to be \emph{extrinsic}, $\mathbf{E}$:
 \begin{align}
   \label{eq:block}\mathbf{B} &\equiv (\mathbf{H}, \mathbf{E}) \\
-  \label{eq:extrinsic}\mathbf{E} &\equiv (\mathbf{E}_T, \mathbf{E}_J, \mathbf{E}_P, \mathbf{E}_A, \mathbf{E}_G)
+  \label{eq:extrinsic}\mathbf{E} &\equiv (\xttickets, \xtdisputes, \xtpreimages, \xtassurances, \xtguarantees)
 \end{align}
 
 The header is a collection of metadata primarily concerned with cryptographic references to the blockchain ancestors and the operands and result of the present transition. As an immutable known \emph{a priori}, it is assumed to be available throughout the functional components of block transition. The extrinsic data is split into its several portions:
 
 \begin{description}
-  \item[tickets] Tickets, used for the mechanism which manages the selection of validators for the permissioning of block authoring. This component is denoted $\mathbf{E}_T$.
-  \item[judgements] Votes, by validators, on dispute(s) arising between them presently taking place. This is denoted $\mathbf{E}_J$.
-  \item[preimages] Static data which is presently being requested to be available for workloads to be able to fetch on demand. This is denoted $\mathbf{E}_P$.
-  \item[availability] Assurances by each validator concerning which of the input data of workloads they have correctly received and are storing locally. This is denoted $\mathbf{E}_A$.
-  \item[reports] Reports of newly completed workloads whose accuracy is guaranteed by specific validators. This is denoted $\mathbf{E}_G$.
+  \item[tickets] Tickets, used for the mechanism which manages the selection of validators for the permissioning of block authoring. This component is denoted $\xttickets$.
+  \item[judgments] Votes, by validators, on dispute(s) arising between them presently taking place. This is denoted $\xtdisputes$.
+  \item[preimages] Static data which is presently being requested to be available for workloads to be able to fetch on demand. This is denoted $\xtpreimages$.
+  \item[availability] Assurances by each validator concerning which of the input data of workloads they have correctly received and are storing locally. This is denoted $\xtassurances$.
+  \item[reports] Reports of newly completed workloads whose accuracy is guaranteed by specific validators. This is denoted $\xtguarantees$.
 \end{description}
 
 \subsection{The State}
 
 Our state may be logically partitioned into several largely independent segments which can both help avoid visual clutter within our protocol description and provide formality over elements of computation which may be simultaneously calculated (i.e. parallelized). We therefore pronounce an equivalence between $\sigma$ (some complete state) and a tuple of partitioned segments of that state:
 \begin{align}\label{eq:statecomposition}
-  \sigma &\equiv (\alpha, \beta, \gamma, \delta, \eta, \iota, \kappa, \lambda, \rho, \tau, \varphi, \chi, \psi)
+  \sigma &\equiv (\alpha, \beta, \gamma, \delta, \eta, \iota, \kappa, \lambda, \rho, \tau, \varphi, \chi, \psi, \pi, \ready, \accumulated)
 \end{align}
 
 In summary, $\delta$ is the portion of state dealing with \emph{services}, analogous in \Jam to the Yellow Paper's (smart contract) \emph{accounts}, the only state of the \emph{YP}'s Ethereum. The identities of services which hold some privileged status are tracked in $\chi$.
@@ -40,7 +40,7 @@ Validators, who are the set of economic actors uniquely privileged to help build
 
 Our state also tracks two aspects of each core: $\alpha$, the authorization requirement which work done on that core must satisfy at the time of being reported on-chain, together with the queue which fills this, $\varphi$; and $\rho$, each of the cores' currently assigned \emph{report}, the availability of whose \emph{work-package} must yet be assured by a super-majority of validators.
 
-Finally, details of the most recent blocks and time are tracked in $\beta$ and $\tau$ respectively and ongoing disputes are tracked in $\bm{\psi}$.
+Finally, details of the most recent blocks and timeslot index are tracked in $\beta$ and $\tau$ respectively, work-reports which are ready to be accumulated and work-packages which were recently accumulated are tracked in $\ready$ and $\accumulated$ respectively and, judgments are tracked in $\psi$ and validator statistics are tracked in $\pi$.
 
 \subsubsection{State Transition Dependency Graph}
 
@@ -48,27 +48,23 @@ Much as in the \emph{YP}, we specify $\Upsilon$ as the implication of formulatin
 \begin{align}\label{eq:transitionfunctioncomposition}
   \tau' &\prec \mathbf{H} \\
   \beta^\dagger &\prec (\mathbf{H}, \beta) \label{eq:betadagger} \\
-  \beta' &\prec (\mathbf{H}, \mathbf{E}_G, \beta^\dagger, \mathbf{C}) \\
-  \gamma' &\prec (\mathbf{H}, \tau, \mathbf{E}_T, \gamma, \iota, \eta', \kappa') \\
+  \beta' &\prec (\mathbf{H}, \xtguarantees, \beta^\dagger, \beefycommitmap) \\
+  \gamma' &\prec (\mathbf{H}, \tau, \xttickets, \gamma, \iota, \eta', \kappa', \psi') \\
   \eta' &\prec (\mathbf{H}, \tau, \eta) \\
-  \kappa' &\prec (\mathbf{H}, \tau, \kappa, \gamma, \psi') \\
+  \kappa' &\prec (\mathbf{H}, \tau, \kappa, \gamma) \\
   \lambda' &\prec (\mathbf{H}, \tau, \lambda, \kappa) \\
-  \psi' &\prec (\mathbf{E}_J, \psi) \\
-  \delta^\dagger &\prec (\mathbf{E}_P, \delta, \tau') \label{eq:deltadagger} \\
-  \rho^\dagger &\prec (\mathbf{E}_J, \rho) \label{eq:rhodagger} \\
-  \rho^\ddagger &\prec (\mathbf{E}_A, \rho^\dagger) \label{eq:rhoddagger} \\
-  \rho' &\prec (\mathbf{E}_G, \rho^\ddagger, \kappa, \tau') \\
-  \begin{rcases*}
-    \delta' \\
-    \chi' \\
-    \iota' \\
-    \varphi' \\
-    \mathbf{C}
-  \end{rcases*} &\prec (\mathbf{E}_A, \rho', \delta^\dagger, \chi, \iota, \varphi) \\
-  \alpha' &\prec (\mathbf{E}_G, \varphi', \alpha)
+  \psi' &\prec (\xtdisputes, \psi) \\
+  \delta^\dagger &\prec (\xtpreimages, \delta, \tau') \label{eq:deltadagger} \\
+  \rho^\dagger &\prec (\xtdisputes, \rho) \label{eq:rhodagger} \\
+  \rho^\ddagger &\prec (\xtassurances, \rho^\dagger) \label{eq:rhoddagger} \\
+  \rho' &\prec (\xtguarantees, \rho^\ddagger, \kappa, \tau') \\
+  \mathbf{W}^* &\prec (\xtassurances, \rho') \\
+  (\ready', \accumulated', \delta', \chi', \iota', \varphi', \beefycommitmap) &\prec (\mathbf{W}^*, \ready, \accumulated, \delta^\dagger, \chi, \iota, \varphi) \\
+  \alpha' &\prec (\mathbf{H}, \xtguarantees, \varphi', \alpha) \\
+  \pi' &\prec (\xtguarantees, \xtpreimages, \xtassurances, \xttickets, \tau, \kappa', \pi, \mathbf{H})\!\!\!\!
 \end{align}
 
-The only synchronous entangements are visible through the intermediate components superscripted with a dagger and defined in equations \ref{eq:betadagger}, \ref{eq:deltadagger} and \ref{eq:rhoddagger}. The latter two mark a merge and join in the dependency graph and, concretely, imply that the preimage lookup extrinsic must be folded into state before the availability extrinsic may be fully processed and accumulation of work happen.
+The only synchronous entanglements are visible through the intermediate components superscripted with a dagger and defined in equations \ref{eq:betadagger}, \ref{eq:deltadagger} and \ref{eq:rhoddagger}. The latter two mark a merge and join in the dependency graph and, concretely, imply that the preimage lookup extrinsic must be folded into state before the availability extrinsic may be fully processed and accumulation of work happen.
 
 \subsection{Which History?}
 
@@ -86,11 +82,11 @@ It is generally possible for two blocks to be valid and yet reference the same p
 
 These goals are achieved through a combination of two consensus mechanisms: \emph{Safrole}, which governs the (not-necessarily forkless) extension of the blockchain; and \emph{Grandpa}, which governs the finalization of some extension into canonical history. Thus, the former delivers point \ref{enum:wh:minimize}, the latter delivers point \ref{enum:wh:finalize} and both are important for delivering point \ref{enum:wh:resolve}. We describe these portions of the protocol in detail in sections \ref{sec:blockproduction} and \ref{sec:grandpa} respectively.
 
-While Safrole limits forks to a large extent (through cryptography, economics and common-time, below), there may be times when we wish to intentionally fork since we have come to know that a particular chain extension must be reverted. In regular operation this should never happen, however we cannot discount the possibility of malicious or malfunctioning nodes. We therefore define such an extension as any which contains a block in which data is reported which \emph{any other} block's state has tagged as invalid (see section \ref{sec:judgements} on how this is done). We further require that Grandpa not finalize any extension which contains such a block. See section \ref{sec:bestchain} for more information here.
+While Safrole limits forks to a large extent (through cryptography, economics and common-time, below), there may be times when we wish to intentionally fork since we have come to know that a particular chain extension must be reverted. In regular operation this should never happen, however we cannot discount the possibility of malicious or malfunctioning nodes. We therefore define such an extension as any which contains a block in which data is reported which \emph{any other} block's state has tagged as invalid (see section \ref{sec:disputes} on how this is done). We further require that Grandpa not finalize any extension which contains such a block. See section \ref{sec:bestchain} for more information here.
 
 \subsection{Time}\label{sec:commonera}
 
-We presume a pre-existing consensus over time specifically for block production and import. While this was not an assumption of Polkadot, pragmatic and resilient solutions exist including the \textsc{ntp} protocol and network. We utilize this assumption on only one way: we require that blocks be considered temporarily invalid if their timeslot is in the future. This is specified in detail in section \ref{sec:blockproduction}.
+We presume a pre-existing consensus over time specifically for block production and import. While this was not an assumption of Polkadot, pragmatic and resilient solutions exist including the \textsc{ntp} protocol and network. We utilize this assumption in only one way: we require that blocks be considered temporarily invalid if their timeslot is in the future. This is specified in detail in section \ref{sec:blockproduction}.
 
 Formally, we define the time in terms of seconds passed since the beginning of the \Jam\emph{Common Era}, 1200 UTC on January 1, 2024.\footnote{1,704,110,400 seconds after the Unix Epoch.} Midday CET is selected to ensure that all significant timezones are on the same date at any exact 24-hour multiple from the beginning of the common era. Formally, this value is denoted $\mathcal{T}$.
 
@@ -106,14 +102,14 @@ In these cases, we define the best block as the head of the best chain, itself d
 
 The present work describes a crypto-economic system, \ie one combining elements of both cryptography and economics and game theory to deliver a self-sovereign digital service. In order to codify and manipulate economic incentives we define a token which is native to the system, which we will simply call \emph{tokens} in the present work.
 
-A value of tokens is generally referred to as a \emph{balance}, and such a value is said to be a member of the set of balances, $\N_B$, which is exactly equivalent to the set of 64-bit unsigned integers:
+A value of tokens is generally referred to as a \emph{balance}, and such a value is said to be a member of the set of balances, $\N_B$, which is exactly equivalent to the set of naturals less than $2^{64}$ (\ie 64-bit unsigned integers in coding parlance). Formally:
 \begin{align}\label{eq:balance}
   \N_B \equiv \N_{2^{64}}
 \end{align}
 
 Though unimportant for the present work, we presume that there be a standard named denomination for $10^{9}$ tokens. This is different to both Ethereum (which uses a denomination of $10^{18}$), Polkadot (which uses a denomination of $10^{10}$) and Polkadot's experimental cousin Kusama (which uses $10^{12}$).
 
-The fact that balances are represented as a 64-bit integer implies that there may never be more than around $18\times10^{9}$ tokens (each divisible into portions of $10^{-9}$) within \Jam. We would expect that the total number of tokens ever issued will be a substantially smaller amount than this.
+The fact that balances are constrained to being less than $2^{64}$ implies that there may never be more than around $18\times10^{9}$ tokens (each divisible into portions of $10^{-9}$) within \Jam. We would expect that the total number of tokens ever issued will be a substantially smaller amount than this.
 
 We further presume that a number of constant \emph{prices} stated in terms of tokens are known. However we leave the specific values to be determined in following work:
 
@@ -144,7 +140,7 @@ We further presume that a number of constant \emph{prices} stated in terms of to
 
 \subsection{The Virtual Machine and Gas}\label{sec:virtualmachineandgas}
 
-In the present work, we presume the definition of a \emph{Polka Virtual Machine} (\textsc{pvm}). This virtual machine is based around the \textsc{risc-v} instruction set architecture, specifically the \textsc{rv}\oldstylenums{32}\textsc{ecm} variant, and is the basis for introducing permissionless logic into our state-transition function.
+In the present work, we presume the definition of a \emph{Polka Virtual Machine} (\textsc{pvm}). This virtual machine is based around the \textsc{risc-v} instruction set architecture, specifically the \textsc{rv}\oldstylenums{32}\textsc{em} variant, and is the basis for introducing permissionless logic into our state-transition function.
 
 The \textsc{pvm} is comparable to the \textsc{evm} defined in the Yellow Paper, but somewhat simpler: the complex instructions for cryptographic operations are missing as are those which deal with environmental interactions. Overall it is far less opinionated since it alters a pre-existing general purpose design, \textsc{risc-v}, and optimizes it for our needs. This gives us excellent pre-existing tooling, since \textsc{pvm} remains essentially compatible with \textsc{risc-v}, including support from the compiler toolkit \textsc{llvm} and languages such as Rust and C++. Furthermore, the instruction set simplicity which \textsc{risc-v} and \textsc{pvm} share, together with the register size (32-bit), active number (13) and endianness (little) make it especially well-suited for creating efficient recompilers on to common hardware architectures.
 
@@ -166,27 +162,27 @@ The \textsc{pvm} is fully defined in appendix \ref{sec:virtualmachine}, but for 
   \,}
 \end{equation}
 
-We refer to the time-proportional computational steps as \emph{gas} (much like in the \emph{YP}) and limit it to a 64-bit quantity. We may use either $\N_G$ or $\Z_G$ to bound it, the first as a prior argument since it is known to be positive, the latter as a result where a negative value indicates an attempt to execute beyond the gas limit. Within the context of the \textsc{pvm}, $\xi \in \N_G$ is typically used to denote gas.
+We refer to the time-proportional computational steps as \emph{gas} (much like in the \emph{YP}) and limit it to a 64-bit quantity. We may use either $\N_G$ or $\Z_G$ to bound it, the first as a prior argument since it is known to be positive, the latter as a result where a negative value indicates an attempt to execute beyond the gas limit. Within the context of the \textsc{pvm}, $\gascounter \in \N_G$ is typically used to denote gas.
 \begin{equation}\label{eq:gasregentry}
-  \Z_G \equiv \mathbb{Z}_{-2^{63}:2^{63}}\ ,\quad
+  \Z_G \equiv \mathbb{Z}_{-2^{63}\dots2^{63}}\ ,\quad
   \N_G \equiv \mathbb{N}_{2^{64}}\ ,\quad
   \N_R \equiv \N_{2^{32}}
 \end{equation}
 
-It is left as a rather important implementation detail to ensure that the amount of time taken while computing the function $\Psi(\dots, \xi, \dots)$ has a maximum computation time approximately proportional to the value of $\xi$ regardless of other operands.
+It is left as a rather important implementation detail to ensure that the amount of time taken while computing the function $\Psi(\dots, \gascounter, \dots)$ has a maximum computation time approximately proportional to the value of $\gascounter$ regardless of other operands.
 
-The \textsc{pvm} is a very simple \textsc{risc} \emph{register machine} and as such has 13 registers, each of which is a 32-bit integer, denoted $\N_R$.\footnote{This is three fewer than \textsc{risc-v}'s 16, however the amount that program code output by compilers uses is 13 since two are reserved for operating system use and the third is fixed as zero} Within the context of the \textsc{pvm}, $\omega \in \seq{\N_R}_{13}$ is typically used to denote the registers.
+The \textsc{pvm} is a very simple \textsc{risc} \emph{register machine} and as such has 13 registers, each of which is a 32-bit quantity, denoted as $\N_R$, a natural less than $2^{32}$.\footnote{This is three fewer than \textsc{risc-v}'s 16, however the amount that program code output by compilers uses is 13 since two are reserved for operating system use and the third is fixed as zero} Within the context of the \textsc{pvm}, $\registers \in \seq{\N_R}_{13}$ is typically used to denote the registers.
 \begin{align}
   \mathbb{M} &\equiv \ltuple\isa{\mathbf{V}}{\Y_{2^{32}}}\ts\isa{\mathbf{A}}{\lseq\{\text{W}, \text{R}, \none\}\rseq_{2^{32}}}\rtuple
 \end{align}
 
-The \textsc{pvm} assumes a simple pageable \textsc{ram} of 32-bit addressable octets where each octet may be either immutable, mutable or inaccessible. The \textsc{ram} definition $\mathbb{M}$ includes two components: a value $\mathbf{V}$ and access $\mathbf{A}$. If the component is unspecified while being subscripted then the value component may be assumed. Within the context of the virtual machine, $\mu \in \mathbb{M}$ is typically used to denote \textsc{ram}.
+The \textsc{pvm} assumes a simple pageable \textsc{ram} of 32-bit addressable octets where each octet may be either immutable, mutable or inaccessible. The \textsc{ram} definition $\mathbb{M}$ includes two components: a value $\mathbf{V}$ and access $\mathbf{A}$. If the component is unspecified while being subscripted then the value component may be assumed. Within the context of the virtual machine, $\memory \in \mathbb{M}$ is typically used to denote \textsc{ram}.
 \begin{align}
-  \mathbb{V}_{\mu} \equiv \{i \mid \mu_\mathbf{A}[i] \ne \none \} \qquad
-  \mathbb{V}^*_{\mu} \equiv \{i \mid \mu_\mathbf{A}[i] = \text{W} \}
+  \mathbb{V}_{\memory} \equiv \{i \mid \memory_\mathbf{A}[i] \ne \none \} \qquad
+  \mathbb{V}^*_{\memory} \equiv \{i \mid \memory_\mathbf{A}[i] = \text{W} \}
 \end{align}
 
-We define two sets of indices for the \textsc{ram} $\mu$: $\mathbb{V}_{\mu}$ is the set of indices which may be read from; and $\mathbb{V}^*_{\mu}$ is the set of indices which may be written to.
+We define two sets of indices for the \textsc{ram} $\memory$: $\mathbb{V}_{\memory}$ is the set of indices which may be read from; and $\mathbb{V}^*_{\memory}$ is the set of indices which may be written to.
 
 Invocation of the \textsc{pvm} has an exit-reason as the first item in the resultant tuple. It is either:
 \begin{itemize}
@@ -223,7 +219,7 @@ The Safrole mechanism subdivides time following genesis into fixed length \emph{
 
 This six-second slot period represents the minimum time between \Jam blocks, and through Safrole we aim to strictly minimize forks arising both due to contention within a slot (where two valid blocks may be produced within the same six-second period) and due to contention over multiple slots (where two valid blocks are produced in different time slots but with the same parent).
 
-Formally when identifying a timeslot index, we use a 32-bit integer indicating the number of six-second timeslots from the \Jam Common Era. For use in this context we introduce the set $\N_T$:
+Formally when identifying a timeslot index, we use a natural less than $2^{32}$ (in compute parlance, a 32-bit unsigned integer) indicating the number of six-second timeslots from the \Jam Common Era. For use in this context we introduce the set $\N_T$:
 \begin{align}\label{eq:time}
   \N_T \equiv \N_{2^{32}}
 \end{align}

@@ -6,153 +6,107 @@ Build with xelatex.
 
 https://graypaper.com/
 
-## Remaining for v0.1
-
-### Content
-- [ ] Rewards. WAITING ON AL
+## Remaining near-term
 
 ### Finesse
-- [ ] Make all subscript names capitalized.
-- [ ] Ensure all definitions are referenced.
+- [ ] Make all subscript names capitalized
+- [ ] Ensure all definitions are referenced
 - [ ] Link and integrate to Bandersnatch RingVRF references (Davide/Syed) IN-PROGRESS
-- [ ] All "where" and "let" lines are unnumbered/integrated
 - [ ] Remove any "TODOs" in text
+- [ ] Macrofy everything
+- [ ] Limit number of extrinsics in a WP.
 
-## Remaining for v0.2
-- [ ] Define Erasure Coding proof means
-  - [ ] Define binary Merkle proof-generation function which compiles neighbours down to leaf.
-  - [ ] Define binary Merkle proof-verification function exists sequence of values which contains our value and Merklised to some root.
-- [ ] Improve audit spec
-  - [ ] Announcement signatures
-  - [ ] How to build perspective on other validators with announcements
-- [ ] Discussion and Conclusions/Further Work
-  - [x] Security assumptions: redirect to ELVES paper
-  - [ ] Creating a parachains service: further work (RFC for upgrade perhaps)
-    - [ ] Key differences
-      - [ ] limited size of Work Output vs unlimited candidate receipt
-      - [ ] Laissez-faire on Work Items vs requirement for valid transition
-      - [ ] Hermit relay (staking &c is on system chains)
-    - [ ] Supporting liveness
-    - [ ] Supporting *MP
-    - [ ] No need for UMP/DMP
-  - [ ] Compare with danksharding v1
-  - [ ] Deeper talk Cost & latency comparison with RISC0-VM and latest ZK stuff.
+### Final PVM
+- [ ] 64-bit PVM
+- [ ] Gas pricing
+  - [ ] Merkle reads in terms of nodes traversed.
+  - [ ] Non-linear gas for export/import host calls
+- [ ] No pages mappable in first 64 KB
 
-## Stuff to replicate to PolkaJam
+### Final DA
+- [ ] Migrate formalization & explanation:
+  - [ ] guaranteeing-specific stuff into relevant section
+  - [ ] assurance-specific stuff into relevant section
+  - [ ] auditing-specific stuff into relevant section
 
-- Beefy root and accumulate-result hash.
-- Judgements
-- Using posterior assignments.
+### Guaranteeing & Auditing
+- [ ] Specify announcement signatures
+- [ ] Specify how to build perspective on other validators with announcements
+
+### Discussion and Conclusions/Further Work
+- [x] Security assumptions: redirect to ELVES paper
+- [ ] Creating a parachains service: further work (RFC for upgrade perhaps)
+  - [ ] Key differences
+    - [ ] limited size of Work Output vs unlimited candidate receipt
+    - [ ] Laissez-faire on Work Items vs requirement for valid transition
+    - [ ] Hermit relay (staking &c is on system chains)
+  - [ ] Supporting liveness
+  - [ ] Supporting *MP
+  - [ ] No need for UMP/DMP
+- [ ] Compare with danksharding v1
+- [ ] Deeper talk Cost & latency comparison with RISC0-VM and latest ZK stuff.
+- [ ] Include full calculations for bandwidth requirements.
+
+## Stuff before 1.0
+
+### Final networking protocol
+- [ ] Consider a simple network protocol needed for M1/M2 and a production protocol for M3+
+- [ ] Block distribution via EC and proactive-chunk-redistribution
+- [ ] Guarantor-guarantor handover
+- [ ] Star-shaped Point-to-point extrinsic distribution
+- [ ] Mixnet for ticket submission
+
+## Bring together sub-protocols
+- [ ] Better integration to Grandpa paper
+- [ ] Better description of Beefy
+- [ ] Better integration to Bandersnatch RingVRF.
 
 ## Ideas to consider
 
-- optional `on_report` entry point
-- Remove assignments from state - no need for it to be there as it's derivable from $\eta_2$ alone.
-- Work Package should be Merklized on pre-stated boundary points.
-  - Add BoundedVec<(ServiceId, u32, u32), MAX_POINTS> to WorkPackage
-  - Construct Merkle trie for Work Package and put root in IsAuthorized
-- Think harder about if the recent blocks, availability timeouts & anchor stuff is affected by using timeslot rather than height.
+### Work Packages
+At present all WorkItems can succeed or fail independently. Instead we should be able to specify co-dependency criteria, so that if one fails, both fail. This should be respected through to accumulation, whereby an accumulator can commit to accumulating the `WorkResult` iff there is a signal from the other accumulator that the result has been accumulated there.
+
+### Statistics/Bookkeeping
+- [ ] Consider integrating the subjective extrinsic and state:
+  - [ ] If so, have three items to allow for a whole epoch of opinion submission
+  - [ ] In which case allow for guaranteeing val keys from last epoch to gain points
+
+### General
+- [ ] Think about time and relationship between lookup-anchor block and import/export period.
+  - [ ] Lookup anchor: maybe it should be 48 hours since lookup anchor can already be up to 24 hours after reporting and we want something available up to 24 hours after that?
+- [ ] Refine arguments:
+  - [ ] Currently passing in the WP hash, some WP fields and all manifest preimages: Consider passing in the whole work-package and a work-item index.
+- [ ] Consider removal of the arrow-above notation in favour of subscript and ellipsis (this only works for the right-arrow).
+- Optional `on_report` entry point
 - Make memo bounded, rather than fixed.
-- Lookup anchor: maybe it should be 48 hours since lookup anchor can already be up to 24 hours after reporting and we want something available up to 24 hours after that?
-
-### Extra DA
-
-DA lasts 28 days instead of 24h.
-
-WP has additional field `manifest: Vec<ManifestEntry>`:
-```rust
-struct Commitment {
-  hash: Hash,
-  len: u32,
-  erasure_root: Hash,
-}
-type CommitmentTreeRoot = Hash; //binary Merkle tree of `Commitment` leaves
-struct HashCommitment {
-  len: u32,
-  hash: Hash,
-}
-enum PackageManifestEntry {
-  Export(Vec<u8>),
-  Import(Commitment),
-  Renew(Commitment),
-  ExportCache(Vec<u8>),
-  ImportCache(Hash),
-  RenewCache { len: u32, hash: Hash },
-}
-```
-
-WR specification has extra field of type `manifest_root: CommitmentTreeRoot`.
-
-Affinity for validator indexes minimizes renewal xfer costs.
-
-Guarantor ECs WP, each proc-export/export/renewal; checks each import chunk is available for > 8h and fetches.
-Guarantor distributes chunks of proc-exports/exports/renewals.
-Auditor:
-- downloads/reconstitutes WP and all nodes of `manifest_root` and downloads/reconstitutes all exports/renewals.
-- ECs WP/exports/renewals
-
-Guaranteeing involves:
-- Fetching/Reconstucting all Imports & Renews
-- Fetching all ImportCaches & RenewCaches
-- Executing
-- ErasureCoding all Exports & GenExports & Renews
-- Distributing chunks of all Exports & GenExports & Renews
-- Hashing all ExportCaches & GenExportCaches
-- Distributing data of all ExportCaches & GenExportCaches & RenewCaches
-- Merklizing ErasureRoots/Hashes to create WR's `manifest_root`
-
-Auditing involves (10 of):
-- Fetching/Reconstucting all Exports, Imports & Renews
-- Fetching all ExportCaches & RenewCaches
-- ErasureCoding all Exports (Renews & Imports should already be audited)
-- Executing
-- ErasureCoding all GenExports
-- Hashing all GenExportCaches
-- Merklizing ErasureRoots/Hashes to verify WR's `manifest_root`
-
-
-`refine` has new host-call:
-- `export(payload: &[u8], cache: bool)`
-- Calling this introduces an additional node in the manifest tree (`manifest_root`), iff the overall manifest size is  constraints would break then the call fails. The WP does not become invalid.
-
-`refine` has new argument:
-- `, manifest_payloads: Vec<(Hash, Vec<u8>)>`
-
-const BASE: u32 = 2048; // Example - might be less.
-
-
-
-let dist = |WP| + SUM_{Export(payload) in M}(payload.len() + BASE) + SUM_{Renew(c) in M}(c.len + BASE) + SUM_{ExportCache(c) in M}(c.len() * 341 + BASE) + SUM_{RenewCache{len, ..} in M}(len * 341 + BASE)
-
-let ecode = |WP| + SUM_{Export(payload) in M}(payload.len() + BASE) + SUM_{Renew(c) in M}(c.len + BASE) + SUM_{ExportCache(c) in M}(c.len() * 341 + BASE) + SUM_{RenewCache{len, ..} in M}(len * 341 + BASE)
-let reco = |WP| + SUM_{Import(c) in M, Renew(c) in M}(c.len + BASE)
-
-WP is valid iff: max(dist, reco) <= 8MB
-WP is available iff: all imports are in DA now and will still be in DA 8 hours from now
-
-
-## Additional work
-- [ ] Proper gas schedule.
-- [ ] Networking protocol.
-- [ ] Off-chain sub-protocols:
-  - [ ] Better integration to Grandpa
-  - [ ] Better description of Beefy
-- [ ] Full definition of Bandersnatch RingVRF.
-- [x] Independent definition of PVM.
-- [ ] PVM:
-  - [ ] Aux registers?
-  - [ ] Move to 64-bit?
-  - [ ] No pages mappable in first 64 KB 
-
-% No persistent distance between parts as in eth, cos, dot etc
-
-% A set of independent, sequential, asynchronously interacting 32-octet state machines each of whose transitions lasts around 2 seconds of webassembly computation if a predetermined and fixed program and whose transition arguments are 5 MB. While well-suited to the verification of substrate blockchains, it is otherwise quite limiting.
-
-
 
 ## Done
-
-### Texty
+- Statistics/Bookkeeping
+  - [x] Integrate into intro and definitions.
+- [x] All "where" and "let" lines are unnumbered/integrated
+- DA2
+  - [x] Update chunks/segments to new size of 12 bytes / 4KB in the availability sections, especially the work-packages and work-reports section and appendix H.
+  - [x] `export` is in multiples of 4096 bytes.
+  - [x] Manifest specifies WI (maximum) export count.
+  - [x] `import` is provided as concatenated segments of 4096 bytes, as per manifest.
+  - [x] Constant-depth merkle root
+  - [x] (Partial) Merkle proof generation function
+  - [x] New erasure root (4 items per validator; 2 hashes + 2 roots).
+  - [x] Specification of import hash (to include concatenated import data and proof).
+    - [x] Proof spec.
+    - [x] Specification of segment root.
+  - [x] Additional two segment-roots in WR.
+    - [x] Specification of segment tree.
+  - [x] Specification of segment proofs.
+  - [x] Specification of final segments for DA and ER.
+  - [x] Re-erasure-code imports.
+  - [x] Fetching imports and verification.
+- [x] Independent definition of PVM.
+- [x] Need to translate the basic work result into an "L"; do it in the appendix to ease layout
+  - [x] service - easy
+  - [x] service code hash - easy
+  - [x] payload hash - easy
+  - [x] gas prioritization - just from WP?
 - [x] Edit Previous Work.
 - [x] Edit Discussion.
 - [x] Document guide at beginning.
@@ -177,7 +131,7 @@ WP is available iff: all imports are in DA now and will still be in DA 8 hours f
   - [x] Avoid entry point
   - [x] Ensure code and jump-table is amalgamated down to VM-spec
   - [x] Move host calls to use register index
-- [x] Update serialization for Judgement extrinsic and judgements state.
+- [x] Update serialization for Judgement extrinsic and judgments state.
 - [x] Define Beefy process
   - [x] Accumulate: should return Beefy service hash
   - [x] Define Keccak hash $\mathbb{H}_K$
@@ -197,13 +151,52 @@ WP is available iff: all imports are in DA now and will still be in DA 8 hours f
   - [x] If so we continue.
   - [x] NOTE: The above should be done in guarantor stage also.
 - [x] Auditing: Always finish once announced.
-- [x] Judgements: Should cancel work-report from Rho prior to accumulation.
-- [x] Signed judgements should not include guarantor keys;
+- [x] Judgments: Should cancel work-report from Rho prior to accumulation.
+- [x] Signed judgments should not include guarantor keys;
   - [x] Judgement extrinsic should use from rho.
-- [x] Check "Which History" section and ensure it mentions possibility for reversion via judgement.
+- [x] Check "Which History" section and ensure it mentions possibility for reversion via judgment.
   - [x] No reversion beyond finalized
   - [x] Of unfinalized extension, not block containing work-reports which appear in the banned-set of any other (valid) block.
 - [x] Prior work and refine/remove the zk argumentation (work with Al)
 - [x] Disputes state transitioning and extrinsic (work with Al)
 - [x] Finish Merklization description
 - [x] Bibliography
+- [x] Updated PVM
+- [x] Remove extrinsic segment root. Rename "* segment-root" to just "segment-root".
+- [x] Combine chunk-root for WP, concatenated extrinsics and concatenated imports.
+- [x] Imports are host-call
+- [x] Make work-report field r bold.
+- [x] Segmented DA v2
+  - [x] Underlying EC doesn't change, need to make clear segments are just a double-EC
+- [x] Make work-report field r bold.
+- [x] Need to translate the basic work result into an "L"; do it in the appendix to ease layout
+  - [x] service - easy
+  - [x] service code hash - easy
+  - [x] payload hash - easy
+  - [x] gas prioritization - just from WP?
+  - [x] Consider introducing a host-call for reading manifest data rather than always passing it in.
+- [x] Guarantees by validator indices
+
+### ELVES
+- [x] Don't immediately alter kappa mid-epoch as it affects off-chain judgments.
+- [x] Instead, apply the blacklist to guarantor sig verification directly.
+- [x] Include the core in the WR.
+- [x] Deposit the WR's signatures in with the judgment.
+- [x] Require at >= 1 negative judgments to be included with a positive verdict, and place signer in offender keys.
+- [x] Serialization of judgment stuff
+- [x] Should always be possible to submit more guarantee signatures of a known-bad report to place them in the offender set.
+  - [x] Only from lambda and kappa?
+- [x] Use posterior kappa for everything except judgments.
+
+% A set of independent, sequential, asynchronously interacting 32-octet state machines each of whose transitions lasts around 2 seconds of webassembly computation if a predetermined and fixed program and whose transition arguments are 5 MB. While well-suited to the verification of substrate blockchains, it is otherwise quite limiting.
+
+### Final DA
+- [x] Include an epochal on-chain lookup from Work Package hash to segments root.
+  - [x] Allow import spec to be given as either WP hash (in case of being recent) or segments root.
+  - [x] How can this work given that WP hash to segments-root needs to happen in-core?
+  - [x] Include a bond to any SR->WPh lookups in the WR.
+  - [x] Check these bonds only just prior to accumulation; if they fail, drop the report and reduce the guarantors' points.
+  - [x] Update on-chain SR->WPh immediately at the time of being reported (don't want for accumulation).
+- [x] Define Erasure Coding proof means
+  - [x] Define binary Merkle proof-generation function which compiles neighbours down to leaf.
+  - [x] Define binary Merkle proof-verification function exists sequence of values which contains our value and Merklised to some root.

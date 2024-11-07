@@ -12,8 +12,8 @@ The service account is defined as the tuple of storage dictionary $\mathbf{s}$, 
 \begin{align}\label{eq:serviceaccount}
   \mathbb{A} \equiv \ltuple\ \begin{aligned}
   \mathbf{s} &\in \dict{\H}{\Y}\ ,\qquad \mathbf{p} \in \dict{\H}{\Y}\ ,\\
-  \mathbf{l} &\in \dict{\ltuple\H\ts\N_L\rtuple}{[\N_T]_{:3}}\ ,\\
-  c &\in \H\ ,\quad b \in \N_B\ ,\quad  g \in \Z_G\ ,\quad m \in \Z_G
+  \mathbf{l} &\in \dict{\ltuple\H\ts\N_L\rtuple}{\seq{\N_T}_{:3}}\ ,\\
+  c &\in \H\ ,\quad b \in \N_B\ ,\quad  g \in \N_G\ ,\quad m \in \N_G
 \end{aligned}\,\rtuple
 \end{align}
 
@@ -45,7 +45,7 @@ There are three entry-points in the code:
 
 Whereas the first, executing in-core, is described in more detail in section \ref{sec:packagesanditems}, the latter two are defined in the present section.
 
-As stated in appendix \ref{sec:virtualmachine}, execution time in the \Jam virtual machine is measured deterministically in units of \emph{gas}, represented as a 64-bit integer formally denoted $\Z_G$. There are two limits specified in the account, $g$, the minimum gas required in order to execute the \emph{Accumulate} entry-point of the service's code, and $m$, the minimum required for the \emph{On Transfer} entry-point.
+As stated in appendix \ref{sec:virtualmachine}, execution time in the \Jam virtual machine is measured deterministically in units of \emph{gas}, represented as a natural number less than $2^{64}$ and formally denoted $\N_G$. We may also use $\Z_G$ to denote the set $\Z_{-2^{63}\dots2^{63}}$ if the quantity may be negative. There are two limits specified in the account, $g$, the minimum gas required in order to execute the \emph{Accumulate} entry-point of the service's code, and $m$, the minimum required for the \emph{On Transfer} entry-point.
 
 
 
@@ -66,7 +66,7 @@ We begin by reformulating the portion of state concerning our data-lookup system
 
 During the on-chain execution of the \emph{Accumulate} function, this is trivial to achieve since there is inherently a state which all validators verifying the block necessarily have complete knowledge of, \ie $\sigma$. However, for the in-core execution of \emph{Refine}, there is no such state inherently available to all validators; we thus name a historical state, the \emph{lookup anchor} which must be considered recently finalized before the work result may be accumulated hence providing this guarantee.
 
-By retaining historical information on its availability, we become confident that any validator with a recently finalized view of the chain is able to determine whether any given preimage was available at any time within the period where auditing may occur. This ensures confidence that judgements will be deterministic even without consensus on chain state.
+By retaining historical information on its availability, we become confident that any validator with a recently finalized view of the chain is able to determine whether any given preimage was available at any time within the period where auditing may occur. This ensures confidence that judgments will be deterministic even without consensus on chain state.
 
 Restated, we must be able to define some \emph{historical} lookup function $\Lambda$ which determines whether the preimage of some hash $h$ was available for lookup by some service account $\mathbf{a}$ at some timeslot $t$, and if so, provide its preimage:
 \begin{equation}
@@ -93,7 +93,7 @@ The state of the lookup system naturally satisfies a number of invariants. First
 
 \subsubsection{Semantics}
 
-The historical status component $h \in [\N_T]_{:3}$ is a sequence of up to three time slots and the cardinality of this sequence implies one of four modes:
+The historical status component $h \in \seq{\N_T}_{:3}$ is a sequence of up to three time slots and the cardinality of this sequence implies one of four modes:
 \begin{itemize}
   \item{$h = []$}: The preimage is \emph{requested}, but has not yet been supplied.
   \item{$h \in \seq{\N_T}_1$}: The preimage is \emph{available} and has been from time $h_0$.
@@ -145,7 +145,14 @@ We may then define a second dependent term $t$, the minimum, or \emph{threshold}
 
 
 \subsection{Service Privileges}
-Up to three services may be recognized as privileged. The portion of state in which this is held is denoted $\chi$ and has three components, each a service index. $m$ is the index of the \emph{manager} service, the service able to effect an alteration of $\chi$ from block to block. $a$ and $v$ are each the indices of services able to alter $\varphi$ and $\iota$ from block to block. Formally:
+Up to three services may be recognized as privileged. The portion of state in which this is held is denoted $\chi$ and has three service index components together with a gas limit. The first, $\chi_m$, is the index of the \emph{manager} service which is the service able to effect an alteration of $\chi$ from block to block. The following two, $\chi_a$ and $\chi_v$, are each the indices of services able to alter $\varphi$ and $\iota$ from block to block.
+
+Finally, $\chi_\mathbf{g}$ is a small dictionary containing the indices of services which automatically accumulate in each block together with a basic amount of gas with which each accumulates. Formally:
 \begin{align}
-  \chi \equiv \ltuple\isa{\chi_m}{\N_S}\ts\isa{\chi_a}{\N_S}\ts\isa{\chi_v}{\N_S}\rtuple
+  \chi \equiv \tuple{
+    \isa{\chi_m}{\N_S} \ts
+    \isa{\chi_a}{\N_S} \ts
+    \isa{\chi_v}{\N_S} \ts
+    \isa{\chi_\mathbf{g}}{\dict{\N_S}{\N_G}}
+  }
 \end{align}
